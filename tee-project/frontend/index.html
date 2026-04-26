@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TEE LLM Inference — Privacy Dashboard</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header class="header">
+  <div style="display:flex;align-items:center;gap:1rem">
+    <span style="font-size:1.5rem">&#128274;</span>
+    <h1>Privacy-Preserving LLM Inference &mdash; TEE Dashboard</h1>
+  </div>
+  <div class="header-controls">
+    <!-- Status LED -->
+    <div style="display:flex;align-items:center;gap:0.5rem">
+      <span class="led led-red" id="status-led"></span>
+      <span id="status-label" style="font-size:0.85rem;color:var(--text-muted)">Initializing...</span>
+    </div>
+    <!-- Confidential Mode -->
+    <div class="toggle-group">
+      <span>Confidential</span>
+      <label class="toggle">
+        <input type="checkbox" id="confidential-toggle" checked />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <!-- Theme -->
+    <div class="toggle-group">
+      <span>&#9728;</span>
+      <label class="toggle">
+        <input type="checkbox" id="theme-toggle" />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+</header>
+
+<!-- ── Warning Banner ─────────────────────────────────────────────────────── -->
+<div class="main" style="padding-bottom:0">
+  <div class="warning-banner" id="warning-banner">
+    <span style="font-size:1.5rem">&#9888;</span>
+    <div>
+      <strong style="color:var(--warning)">Confidential Mode Disabled</strong><br />
+      <small style="color:var(--text-muted)">Prompts are still encrypted in transit, but attestation verification is relaxed.</small>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main Content ───────────────────────────────────────────────────────── -->
+<main class="main">
+
+  <!-- Row 1: Inference + Privacy Score -->
+  <div class="grid-2">
+
+    <!-- Inference Panel -->
+    <div class="card">
+      <div class="card-title">&#128274; Encrypted Inference</div>
+
+      <textarea
+        id="prompt-input"
+        class="prompt-area"
+        placeholder="Type your prompt here... (Ctrl+Enter to send)&#10;&#10;Try: 'explain TEE', 'hello', or 'privacy'"
+      ></textarea>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="send-btn">&#128274; Encrypt &amp; Send</button>
+        <small style="color:var(--text-muted)">AES-256-GCM + RSA-2048-OAEP</small>
+      </div>
+
+      <!-- Encrypted payload preview -->
+      <div style="margin-top:1rem">
+        <div class="card-title" style="margin-bottom:0.5rem">Encrypted Payload (what leaves your browser)</div>
+        <div class="encrypted-text" id="encrypted-preview">— send a prompt to see the ciphertext —</div>
+      </div>
+
+      <!-- Response -->
+      <div style="margin-top:1rem">
+        <div class="card-title" style="margin-bottom:0.5rem">Decrypted Response</div>
+        <div class="response-box" id="response-box">— awaiting encrypted response —</div>
+        <div id="response-meta" style="margin-top:0.5rem;display:flex;align-items:center;gap:0.5rem"></div>
+      </div>
+    </div>
+
+    <!-- Right column: Privacy Score + Attestation -->
+    <div style="display:grid;gap:1.5rem;grid-template-rows:auto 1fr">
+
+      <!-- Privacy Score -->
+      <div class="card">
+        <div class="card-title">&#128065; Privacy Score</div>
+        <div style="display:flex;align-items:center;gap:2rem">
+          <div class="gauge-container">
+            <svg class="gauge-svg" viewBox="0 0 160 90" xmlns="http://www.w3.org/2000/svg">
+              <!-- Background arc -->
+              <path d="M 10,80 A 70,70 0 0,1 150,80"
+                fill="none" stroke="var(--border)" stroke-width="8" stroke-linecap="round"/>
+              <!-- Dynamic arc -->
+              <path id="gauge-arc"
+                d="M 10,80 A 70,70 0 0,1 150,80"
+                fill="none" stroke="#2ed573" stroke-width="8" stroke-linecap="round"/>
+            </svg>
+            <div class="gauge-value" id="gauge-value">100</div>
+            <div class="gauge-label" id="gauge-risk">NONE</div>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem">Score Interpretation</div>
+            <div style="font-size:0.8rem;line-height:1.8">
+              <span style="color:#2ed573">&#9632;</span> 80&ndash;100: Low risk<br/>
+              <span style="color:#ffa502">&#9632;</span> 50&ndash;79: Medium risk<br/>
+              <span style="color:#ff4757">&#9632;</span> 0&ndash;49: High/Critical<br/>
+            </div>
+            <div style="margin-top:0.75rem;font-size:0.75rem;color:var(--text-muted)">
+              Detects: SSN, email, phone, credit card, IP, passport, DOB
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attestation Panel -->
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>&#128736; Remote Attestation</span>
+          <span class="badge badge-warning" id="attest-badge">SIMULATED</span>
+        </div>
+        <div class="attest-field">
+          <div class="attest-key">MRENCLAVE (code hash)</div>
+          <div class="attest-val" id="attest-mrenclave">Loading...</div>
+        </div>
+        <div class="attest-field">
+          <div class="attest-key">MRSIGNER (signer hash)</div>
+          <div class="attest-val" id="attest-mrsigner">Loading...</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div>
+            <div class="attest-key">Trust Level</div>
+            <div class="attest-val" id="attest-trust">—</div>
+          </div>
+          <div>
+            <div class="attest-key">Uptime</div>
+            <div class="attest-val" id="attest-uptime">—</div>
+          </div>
+        </div>
+        <div style="margin-top:1rem;padding:0.75rem;background:var(--code-bg);border-radius:6px;font-size:0.75rem;color:var(--text-muted)">
+          &#9432; In production, MRENCLAVE is verified against Intel IAS/DCAP to prove code integrity before sending any data.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Row 2: Metrics -->
+  <div class="card">
+    <div class="card-title">&#128200; Runtime Metrics</div>
+    <div class="grid-4" style="gap:1.5rem">
+      <div>
+        <div class="metric-value" id="metric-total">0</div>
+        <div class="metric-label">Total Requests</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
+      </div>
+      <div>
+        <div class="metric-value" id="metric-latency">0 ms</div>
+        <div class="metric-label">Avg Latency</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:30%"></div></div>
+      </div>
+      <div>
+        <div class="metric-value" id="metric-enc-overhead">0 ms</div>
+        <div class="metric-label">Crypto Overhead</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:15%"></div></div>
+      </div>
+      <div>
+        <div class="metric-value" id="metric-privacy">100</div>
+        <div class="metric-label">Avg Privacy Score</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-top:1.5rem;gap:1.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem;background:var(--surface2);border-radius:8px">
+        <span style="color:var(--text-muted);font-size:0.85rem">Enclave Uptime</span>
+        <span id="metric-uptime" style="font-weight:600">0s</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem;background:var(--surface2);border-radius:8px">
+        <span style="color:var(--text-muted);font-size:0.85rem">Nonce Cache Size</span>
+        <span id="metric-nonces" style="font-weight:600">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 3: Architecture Info -->
+  <div class="card">
+    <div class="card-title">&#128196; Architecture Overview</div>
+    <div class="grid-3" style="gap:1.5rem">
+      <div style="padding:1rem;background:var(--surface2);border-radius:8px;border-left:3px solid var(--accent)">
+        <div style="font-weight:600;margin-bottom:0.5rem">Client (Browser)</div>
+        <ul style="font-size:0.8rem;color:var(--text-muted);list-style:none;line-height:2">
+          <li>&#128274; Web Crypto API (AES-256-GCM)</li>
+          <li>&#128273; RSA-OAEP session key wrap</li>
+          <li>&#128260; UUID nonce generation</li>
+          <li>&#128065; PII-free prompt display</li>
+        </ul>
+      </div>
+      <div style="padding:1rem;background:var(--surface2);border-radius:8px;border-left:3px solid var(--accent2)">
+        <div style="font-weight:600;margin-bottom:0.5rem">TEE Enclave (Server)</div>
+        <ul style="font-size:0.8rem;color:var(--text-muted);list-style:none;line-height:2">
+          <li>&#128736; Isolated memory context</li>
+          <li>&#128200; PyCryptodome AES/RSA</li>
+          <li>&#129302; LLM inference (DummyLLM/OpenAI)</li>
+          <li>&#128683; No plaintext logging</li>
+        </ul>
+      </div>
+      <div style="padding:1rem;background:var(--surface2);border-radius:8px;border-left:3px solid var(--warning)">
+        <div style="font-weight:600;margin-bottom:0.5rem">Security Guarantees</div>
+        <ul style="font-size:0.8rem;color:var(--text-muted);list-style:none;line-height:2">
+          <li>&#9989; Replay attack prevention</li>
+          <li>&#9989; Rate limiting (60 req/min)</li>
+          <li>&#9989; Memory wipe on exit</li>
+          <li>&#9989; Remote attestation quote</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="js/crypto.js"></script>
+<script src="js/api.js"></script>
+<script src="js/dashboard.js"></script>
+</body>
+</html>
