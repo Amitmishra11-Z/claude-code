@@ -62,6 +62,7 @@
     "cli-boxes": "^3.0.0",
     "code-excerpt": "^4.0.0",
     "diff": "^7.0.0",
+    "docx": "^9.6.1",
     "drizzle-orm": "^0.45.2",
     "env-paths": "^4.0.0",
     "execa": "^9.5.0",

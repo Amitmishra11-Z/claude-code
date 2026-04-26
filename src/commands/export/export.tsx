@@ -5,7 +5,7 @@ import type { ToolUseContext } from '../../Tool.js';
 import type { LocalJSXCommandOnDone } from '../../types/command.js';
 import type { Message } from '../../types/message.js';
 import { getCwd } from '../../utils/cwd.js';
-import { renderMessagesToPlainText } from '../../utils/exportRenderer.js';
+import { renderMessagesToDocx, renderMessagesToPlainText } from '../../utils/exportRenderer.js';
 import { writeFileSync_DEPRECATED } from '../../utils/slowOperations.js';
 function formatTimestamp(date: Date): string {
   const year = date.getFullYear();
@@ -51,12 +51,27 @@ async function exportWithReactRenderer(context: ToolUseContext): Promise<string>
   return renderMessagesToPlainText(context.messages, tools);
 }
 export async function call(onDone: LocalJSXCommandOnDone, context: ToolUseContext, args: string): Promise<React.ReactNode> {
-  // Render the conversation content
-  const content = await exportWithReactRenderer(context);
+  const tools = context.options.tools || [];
 
   // If args are provided, write directly to file and skip dialog
   const filename = args.trim();
   if (filename) {
+    // Handle .docx export when arg ends with .docx
+    if (filename.endsWith('.docx')) {
+      const filepath = join(getCwd(), filename);
+      try {
+        const buf = await renderMessagesToDocx(context.messages, tools);
+        writeFileSync_DEPRECATED(filepath, buf);
+        onDone(`Conversation exported to: ${filepath}`);
+        return null;
+      } catch (error) {
+        onDone(`Failed to export conversation: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        return null;
+      }
+    }
+
+    // Render the conversation content for plain text export
+    const content = await exportWithReactRenderer(context);
     const finalFilename = filename.endsWith('.txt') ? filename : filename.replace(/\.[^.]+$/, '') + '.txt';
     const filepath = join(getCwd(), finalFilename);
     try {
@@ -72,6 +87,9 @@ export async function call(onDone: LocalJSXCommandOnDone, context: ToolUseContex
     }
   }
 
+  // Render the conversation content for the dialog
+  const content = await exportWithReactRenderer(context);
+
   // Generate default filename from first prompt or timestamp
   const firstPrompt = extractFirstPrompt(context.messages);
   const timestamp = formatTimestamp(new Date());
@@ -84,7 +102,7 @@ export async function call(onDone: LocalJSXCommandOnDone, context: ToolUseContex
   }
 
   // Return the dialog component when no args provided
-  return <ExportDialog content={content} defaultFilename={defaultFilename} onDone={result => {
+  return <ExportDialog content={content} defaultFilename={defaultFilename} messages={context.messages} tools={tools} onDone={result => {
     onDone(result.message);
   }} />;
 }
