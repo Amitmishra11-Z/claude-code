@@ -149,10 +149,11 @@ export async function renderMessagesToDocx(
 
 	const paragraphs = lines.map((line) => {
 		const trimmed = line.trim()
-		// Detect simple heading patterns (e.g. lines that are all-caps or start with "##"-style markers)
-		if (/^#{1,3}\s/.test(trimmed)) {
-			const level = trimmed.match(/^#{1,3}/)?.[0].length ?? 1
-			const text = trimmed.replace(/^#{1,3}\s+/, '')
+		// Detect simple heading patterns (e.g. lines starting with "##"-style markers)
+		const headingMatch = trimmed.match(/^(#{1,3})\s+(.*)$/)
+		if (headingMatch) {
+			const level = headingMatch[1].length
+			const text = headingMatch[2]
 			const headingLevel =
 				level === 1
 					? HeadingLevel.HEADING_1

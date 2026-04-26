@@ -41,13 +41,17 @@ export function ExportDialog({
 	const [showFilenameInput, setShowFilenameInput] = useState(false)
 	const { columns } = useTerminalSize()
 
+	const applyFilename = useCallback((name: string) => {
+		setFilename(name)
+		setCursorOffset(name.length)
+	}, [])
+
 	// Handle going back from filename input to option selection
 	const handleGoBack = useCallback(() => {
 		setShowFilenameInput(false)
 		setSelectedOption(null)
-		setFilename(defaultFilename)
-		setCursorOffset(defaultFilename.length)
-	}, [defaultFilename])
+		applyFilename(defaultFilename)
+	}, [defaultFilename, applyFilename])
 	const handleSelectOption = async (value: string): Promise<void> => {
 		if (value === 'clipboard') {
 			// Copy to clipboard immediately
@@ -59,14 +63,11 @@ export function ExportDialog({
 			})
 		} else if (value === 'file') {
 			setSelectedOption('file')
-			setFilename(defaultFilename)
-			setCursorOffset(defaultFilename.length)
+			applyFilename(defaultFilename)
 			setShowFilenameInput(true)
 		} else if (value === 'docx') {
 			setSelectedOption('docx')
-			const docxDefault = `${defaultFilename.replace(/\.txt$/, '')}.docx`
-			setFilename(docxDefault)
-			setCursorOffset(docxDefault.length)
+			applyFilename(`${defaultFilename.replace(/\.txt$/, '')}.docx`)
 			setShowFilenameInput(true)
 		}
 	}
@@ -87,7 +88,8 @@ export function ExportDialog({
 		}
 	}
 	const handleFilenameSubmit = async () => {
-		if (selectedOption === 'docx') {
+		// Use selectedOption as primary signal, filename extension as fallback
+		if (selectedOption === 'docx' || filename.endsWith('.docx')) {
 			await handleDocxSubmit()
 			return
 		}
