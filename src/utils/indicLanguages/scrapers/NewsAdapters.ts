@@ -54,7 +54,7 @@ export class NDTVAdapter extends ScraperAdapter {
 /**
  * Adapter for India Today
  */
-export class IndiaT odayAdapter extends ScraperAdapter {
+export class IndiaTodayAdapter extends ScraperAdapter {
   canHandle(url: string): boolean {
     return url.includes('indiatoday.in')
   }
